@@ -18,7 +18,7 @@ blueprint:
 
     ℹ️ Version: v.1.0"
 
-  source_url: https://github.com/SmartHomeForDummies/
+  source_url: https://github.com/SmartHomeForDummies/heating-blueprints/blob/main/heizplan.yaml
   domain: automation
   author: SmartHome for Dummies
   input:
