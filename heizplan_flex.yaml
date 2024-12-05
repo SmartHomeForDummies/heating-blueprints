@@ -1,0 +1,267 @@
+blueprint:
+  name: Heizplan Flex
+  description:
+    "## Heizplan\n Einfache Heizungsteuerung nach einem Heizplan (Zeitplan).
+    Die Einschaltzeiten repräsentieren das Heizprofil Kompfort\n Berücksichtigt werden
+    zwei Heizprofile Komfort & ECO\n Ein geöffnetes Fesnter, schaltet das Thermostat
+    in den Off Modus\n Das Schließen des Fesnters, schaltet das Thermostat in den
+    Heat Modus und der laut Zeitplan voreingestellten Soll-Temperatur\n Bei Abwesenheit
+    (Letze Person verlässt die Heim Zone) aller Personen wird die ECO Temperatur eingestelt\n
+    Bei Anwesenheit wird die gemäß dem Zeitplan vorgesehene Soll-Temperatur eingestellt\n
+    Ein Helfer Heizsaison sorgt dafür, das Die Automatisierung nur während der Heizsaison
+    ausgeführt wird\n\n### *Voraussetzungen:*\n - Zeitplan: Zeitplan Helfer\n - Climate:
+    Climate Entität\n - Fenster Sensor: Fenster Kontakt (binary_sensor) - Optional\n - Heimzone:
+    Anwesheit - Optional\n - Heizsaison: Input Boolean Helfer\nℹ️ Version: v.1.0"
+  source_url: https://github.com/SmartHomeForDummies/heating-blueprints/blob/main/heizplan_flex.yaml
+  domain: automation
+  author: SmartHome for Dummies
+  input:
+    heitsaison:
+      name: Heizsason
+      description: Input Boolean Helfer der vorgibt ob die Heizsaison aktiv oder inaktiv ist.
+      selector:
+        entity:
+          filter:
+            - domain:
+                - input_boolean
+          multiple: false
+    climate_entity:
+      name: Thermostate
+      description: Wähle die Thermostat (Climate) Entität aus
+      selector:
+        entity:
+          filter:
+            - domain:
+                - climate
+          multiple: true
+    schedule_entity:
+      name: Heizplan
+      description: Wähle die Heizplan Entität aus
+      selector:
+        entity:
+          filter:
+            - domain:
+                - schedule
+          multiple: false
+    comfort_temperature:
+      name: Komfort Temperatur °C
+      selector:
+        number:
+          min: 4.0
+          max: 32.0
+          step: 0.5
+          unit_of_measurement: °C
+          mode: slider
+      default: 22
+    eco_temperature:
+      name: ECO Temperatur °C
+      selector:
+        number:
+          min: 4.0
+          max: 32.0
+          step: 0.5
+          unit_of_measurement: °C
+          mode: slider
+      default: 17
+    window_activ:
+      name: Fenstersensor berücksichtigen?
+      description: Soll ein fenstersensor berücksichtigt werden?
+      selector:
+        boolean: {}
+      default: false
+    window_entity:
+      name: Fenster
+      description: Wähle den zugehörigen Fenster Sensor aus
+      default:
+      selector:
+        entity:
+          filter:
+            - domain:
+                - binary_sensor
+              device_class:
+                - window
+                - door
+          multiple: false
+    window_time:
+      name: Fenster Öffnungszeit
+      description:
+        Wie lange muss das Fenster geöffnet/geschollsen werden damit das
+        Thermostat ein bzw. ausgeschaltet wird
+      selector:
+        time: {}
+      default: 00:00:30
+    home_zone_activ:
+      name: An-und Abwesenheit berücksichtigen?
+      description: Soll An-und Abwesenheit berücksichtigen werden?
+      selector:
+        boolean: {}
+      default: false
+    home_zone:
+      name: Heim Zone
+      description: Wähle die Heimzone aus
+      default:
+      selector:
+        entity:
+          filter:
+            - domain:
+                - zone
+          multiple: false
+mode: restart
+trigger_variables:
+  window_sensor: !input window_entity
+  home_zone: !input home_zone
+triggers:
+  - trigger: state
+    entity_id: !input schedule_entity
+    from: "off"
+    to: "on"
+    id: komfort
+  - trigger: state
+    entity_id: !input schedule_entity
+    from: "on"
+    to: "off"
+    id: eco
+  - trigger: template
+    value_template: "{{ states(home_zone) | int < 1 }}"
+    id: eco
+    enabled: !input home_zone_activ
+  - trigger: template
+    value_template: "{{ states(home_zone) | int > 0 }}"
+    id: ankommen
+    enabled: !input home_zone_activ
+  - trigger: template
+    value_template: "{{ is_state(window_sensor , 'off') }}"
+    for: !input window_time
+    id: window
+    enabled: !input window_activ
+  - trigger: template
+    value_template: "{{ is_state(window_sensor , 'on') }}"
+    for: !input window_time
+    id: window
+    enabled: !input window_activ
+conditions:
+  - condition: state
+    entity_id: !input heitsaison
+    state: "on"
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id:
+              - komfort
+          - condition: template
+            value_template: "{{ states(home_zone) | int > 0 }}"
+            enabled: !input home_zone_activ
+          - condition: template
+            value_template: "{{ is_state(window_sensor , 'off') }}"
+            enabled: !input window_activ
+        sequence:
+          - metadata: {}
+            data:
+              temperature: !input comfort_temperature
+            target:
+              entity_id: !input climate_entity
+            action: climate.set_temperature
+      - conditions:
+          - condition: trigger
+            id:
+              - eco
+          - condition: template
+            value_template: "{{ is_state(window_sensor , 'off') }}"
+            enabled: !input window_activ
+        sequence:
+          - metadata: {}
+            data:
+              temperature: !input eco_temperature
+            target:
+              entity_id: !input climate_entity
+            action: climate.set_temperature
+      - conditions:
+          - condition: trigger
+            id:
+              - ankommen
+          - condition: state
+            entity_id: !input schedule_entity
+            state: "on"
+          - condition: template
+            value_template: "{{ is_state(window_sensor , 'off') }}"
+            enabled: !input window_activ
+        sequence:
+          - metadata: {}
+            data:
+              temperature: !input comfort_temperature
+            target:
+              entity_id: !input climate_entity
+            action: climate.set_temperature
+      - conditions:
+          - condition: trigger
+            id:
+              - ankommen
+          - condition: state
+            entity_id: !input schedule_entity
+            state: "off"
+          - condition: template
+            value_template: "{{ is_state(window_sensor , 'off') }}"
+            enabled: !input window_activ
+        sequence:
+          - metadata: {}
+            data:
+              temperature: !input eco_temperature
+            target:
+              entity_id: !input climate_entity
+            action: climate.set_temperature
+      - conditions:
+          - condition: trigger
+            id:
+              - window
+          - condition: template
+            value_template: "{{ is_state(window_sensor , 'on') }}"
+            enabled: !input window_activ
+          - condition: not
+            conditions:
+              - condition: state
+                entity_id: !input climate_entity
+                attribute: hvac_modes
+                state: "off"
+        sequence:
+          - target:
+              entity_id: !input climate_entity
+            data:
+              hvac_mode: "off"
+            action: climate.set_hvac_mode
+      - conditions:
+          - condition: trigger
+            id:
+              - window
+          - condition: template
+            value_template: "{{ is_state(window_sensor , 'off') }}"
+            enabled: !input window_activ
+        sequence:
+          - target:
+              entity_id: !input climate_entity
+            data:
+              hvac_mode: heat
+            action: climate.set_hvac_mode
+          - delay:
+              hours: 0
+              minutes: 0
+              seconds: 10
+              milliseconds: 0
+          - if:
+              - condition: state
+                entity_id: !input schedule_entity
+                state: "on"
+            then:
+              - action: climate.set_temperature
+                metadata: {}
+                data:
+                  temperature: !input comfort_temperature
+                target:
+                  entity_id: !input climate_entity
+            else:
+              - action: climate.set_temperature
+                metadata: {}
+                data:
+                  temperature: !input eco_temperature
+                target:
+                  entity_id: !input climate_entity
