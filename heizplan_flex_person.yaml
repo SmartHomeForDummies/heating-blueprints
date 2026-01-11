@@ -6,13 +6,12 @@ blueprint:
     zwei Heizprofile Komfort & ECO\n Ein geöffnetes Fesnter, schaltet das Thermostat
     in den Off Modus\n Das Schließen des Fesnters, schaltet das Thermostat in den
     Heat Modus und der laut Zeitplan voreingestellten Soll-Temperatur\n Bei Abwesenheit
-    der Personen wird die ECO Temperatur eingestelt\n
+    (Letze Person verlässt die Heim Zone) aller Personen wird die ECO Temperatur eingestelt\n
     Bei Anwesenheit wird die gemäß dem Zeitplan vorgesehene Soll-Temperatur eingestellt\n
     Ein Helfer Heizsaison sorgt dafür, das Die Automatisierung nur während der Heizsaison
     ausgeführt wird\n\n### *Voraussetzungen:*\n - Zeitplan: Zeitplan Helfer\n - Climate:
-    Climate Entität\n - Fenster Sensor: Fenster Kontakt (binary_sensor) - Optional\n
-    - Person: Anwesheit - Optional\n - Heizsaison: Input Boolean Helfer\nℹ️ Version:
-    v.1.0"
+    Climate Entität\n - Fenster Sensor: Fenster Kontakt (binary_sensor) - Optional\n - Person:
+    Anwesheit - Optional\n - Heizsaison: Input Boolean Helfer\nℹ️ Version: v.1.0"
   source_url: https://github.com/SmartHomeForDummies/heating-blueprints/blob/main/heizplan_flex_person.yaml
   domain: automation
   author: SmartHome for Dummies
